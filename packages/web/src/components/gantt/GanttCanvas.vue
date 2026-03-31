@@ -115,6 +115,7 @@ function getTaskAtPosition(clientX: number, clientY: number): FlattenedTask | nu
   if (rowIndex < 0 || rowIndex >= props.visibleTasks.length) return null
 
   const ft = props.visibleTasks[rowIndex]
+  if (!ft) return null
   const task = ft.task
   const startX = props.dateToX(task.start_time)
   const endX = props.dateToX(task.end_time)

@@ -1,3 +1,6 @@
+packages:
+  - 'packages/*'
+
 overrides:
   'vue': 'beta'
   '@vue/compiler-core': 'beta'
@@ -16,3 +19,8 @@ overrides:
 peerDependencyRules:
   allowAny:
     - 'vue'
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - 'bcrypt'
+  - 'better-sqlite3'

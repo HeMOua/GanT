@@ -47,11 +47,15 @@ export function renderDependencyLines(options: DependencyRendererOptions) {
   // 建立 taskId → row index 映射
   const taskRowMap = new Map<number, number>()
   for (let i = 0; i < visibleTasks.length; i++) {
-    taskRowMap.set(visibleTasks[i].task.id, i)
+    const ft = visibleTasks[i]
+    if (ft) {
+      taskRowMap.set(ft.task.id, i)
+    }
   }
 
   for (let i = 0; i < visibleTasks.length; i++) {
     const ft = visibleTasks[i]
+    if (!ft) continue
     const task = ft.task
     if (!task.dependencies || task.dependencies.length === 0) continue
 
@@ -59,7 +63,9 @@ export function renderDependencyLines(options: DependencyRendererOptions) {
       const sourceRow = taskRowMap.get(dep.task_id)
       if (sourceRow === undefined) continue
 
-      const sourceTask = visibleTasks[sourceRow].task
+      const sourceFt = visibleTasks[sourceRow]
+      if (!sourceFt) continue
+      const sourceTask = sourceFt.task
       const targetRow = i
 
       drawDependencyArrow(
