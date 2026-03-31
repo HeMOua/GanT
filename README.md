@@ -1,42 +1,88 @@
-# 16-GanT
+# GanT - Professional Gantt Chart & Project Management System
 
-This template should help get you started developing with Vue 3 in Vite.
+**GanT** is a high-performance, professional-grade project management system built with Vue 3 and NestJS. It features a unique hybrid rendering architecture (Canvas + DOM) to provide a smooth, interactive Gantt chart experience with deep hierarchical task management capabilities.
 
-## Recommended IDE Setup
+## 🚀 Key Features
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+-   **Interactive Gantt Chart**: Performance-optimized Canvas rendering for timelines, task bars, dependencies, and progress tracking.
+-   **Hierarchical Task Management**: Intelligent task tree supporting unlimited nesting, sorting, and real-time synchronization.
+-   **Collaborative Visualization**: Dual-visualization strategy for task assignments, including colored sub-segments for time-based handoffs and mini avatar circles for collaborative tasks.
+-   **Flexible Viewport Navigation**: Seamless zooming (Year, Quarter, Month, Week, Day) and intuitive vertical/horizontal scrolling.
+-   **Rich Tooltips**: Comprehensive task information at a glance, featuring assignee-specific timeline bars.
+-   **Work Log System**: Integrated work logging for accurate time tracking and progress auditing.
+-   **Team Management**: Advanced user role management and activity tracking.
 
-## Recommended Browser Setup
+## 🛠️ Tech Stack
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+### Frontend (`packages/web`)
+-   **Framework**: [Vue 3 (Latest)](https://vuejs.org/)
+-   **Build Tool**: [Vite](https://vite.dev/)
+-   **State Management**: [Pinia](https://pinia.vuejs.org/)
+-   **Routing**: [Vue Router](https://router.vuejs.org/)
+-   **HTTP Client**: [Axios](https://axios-http.com/)
+-   **Styling**: Vanilla CSS with modern design tokens.
 
-## Type Support for `.vue` Imports in TS
+### Backend (`packages/server`)
+-   **Framework**: [NestJS](https://nestjs.com/)
+-   **Database**: SQLite (via [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) and [TypeORM](https://typeorm.io/))
+-   **Authentication**: JWT, Passport, and Bcrypt for secure access control.
+-   **Validation**: `class-validator` and `class-transformer` for robust API input handling.
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+## 📂 Project Structure
 
-## Customize configuration
+This project is a monorepo managed by `pnpm`.
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+```text
+.
+├── packages/
+│   ├── web/      # Vue 3 Frontend
+│   └── server/   # NestJS Backend
+├── package.json  # Root workspace configuration
+├── pnpm-workspace.yaml
+└── README.md     # You are here
+```
 
-## Project Setup
+## 🚥 Getting Started
 
-```sh
+### Prerequisites
+
+-   [Node.js](https://nodejs.org/) (Version ^20.19.0 or >=22.12.0)
+-   [pnpm](https://pnpm.io/) (Recommended)
+
+### Installation
+
+```bash
 pnpm install
 ```
 
-### Compile and Hot-Reload for Development
+### Development
 
-```sh
-pnpm dev
+Run both the frontend and backend in parallel:
+
+```bash
+pnpm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+-   **Frontend**: Usually starts at [http://localhost:5173](http://localhost:5173)
+-   **Backend**: Usually starts at [http://localhost:3000](http://localhost:3000)
 
-```sh
-pnpm build
+### Production Build
+
+```bash
+# Build the entire workspace
+pnpm run build
+
+# Or build specific packages
+pnpm run build:web
+pnpm run build:server
 ```
+
+## 🗺️ Architecture Overview
+
+GanT utilizes a **Hybrid Rendering Strategy** for maximum performance and flexibility:
+-   **Canvas Rendering**: Used for the time-scrolling area (Gantt chart bars, background grid, dependencies) to handle thousands of elements with smooth 60FPS interaction.
+-   **DOM Rendering**: Used for the task tree (left-side list) and UI components (dialogs, menus) to leverage standard browser accessibility, styling, and event handling.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
