@@ -1,15 +1,28 @@
 {
   "name": "gant-workspace",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev:web": "pnpm --filter web dev",
     "dev:server": "pnpm --filter server start:dev",
     "dev": "pnpm run --parallel dev:web dev:server",
     "build:web": "pnpm --filter web build",
-    "build:server": "pnpm --filter server build"
+    "build:server": "pnpm --filter server build",
+    "build": "pnpm build:web && pnpm build:server",
+    "tauri": "tauri",
+    "dev:desktop": "tauri dev",
+    "build:desktop": "tauri build --target universal-apple-darwin",
+    "package:app": "bash scripts/package-app.sh"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@nestjs/core", "bcrypt", "better-sqlite3"]
-  }
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "bcrypt",
+      "better-sqlite3"
+    ]
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4"
+  },
+  "packageManager": "pnpm@10.34.8"
 }

@@ -1,7 +1,15 @@
 <script setup lang="ts">
+import { isTauri, invoke } from '@tauri-apps/api/core'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
+const desktop = isTauri()
+const backupMessage = ref('')
+async function backup() {
+  try { backupMessage.value = await invoke<string>('backup_workspace') }
+  catch { backupMessage.value = '备份失败，请检查目标文件夹是否可写' }
+}
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -27,17 +35,18 @@ function handleLogout() {
         </router-link>
         <router-link v-if="authStore.user?.role === 'ADMIN'" to="/team" class="nav-item" exact-active-class="active">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-          团队管理
+          成员管理
         </router-link>
       </nav>
 
+      <div v-if="desktop" class="backup-area"><button @click="backup">备份数据…</button><p role="status">{{ backupMessage }}</p></div>
       <div class="user-profile">
         <div class="avatar">{{ authStore.user?.username?.charAt(0).toUpperCase() || 'U' }}</div>
         <div class="user-info">
           <div class="username">{{ authStore.user?.display_name || authStore.user?.username }}</div>
-          <div class="role">{{ authStore.user?.role === 'ADMIN' ? '管理员' : '成员' }}</div>
+          <div class="role">{{ desktop ? '离线使用' : authStore.user?.role === 'ADMIN' ? '管理员' : '成员' }}</div>
         </div>
-        <button class="logout-btn" @click="handleLogout" title="退出登录">
+        <button v-if="!desktop" class="logout-btn" @click="handleLogout" title="退出登录">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
         </button>
       </div>
@@ -55,6 +64,8 @@ function handleLogout() {
 </template>
 
 <style scoped>
+.backup-area { padding: 0 20px; font-size: 12px; color: #64748b; }
+.backup-area button { cursor: pointer; padding: 8px 12px; background: #eff6ff; color: #2563eb; border: 0; border-radius: 8px; }
 .layout {
   display: flex;
   height: 100vh;

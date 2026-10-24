@@ -1,8 +1,9 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { isTauri } from '@tauri-apps/api/core'
+import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: isTauri() ? createWebHashHistory() : createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/login',

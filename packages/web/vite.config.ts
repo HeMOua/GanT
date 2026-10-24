@@ -8,7 +8,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 export default defineConfig({
   plugins: [
     vue(),
-    vueDevTools(),
+    ...(process.env.TAURI_ENV_PLATFORM ? [] : [vueDevTools()]),
   ],
   resolve: {
     alias: {
@@ -17,6 +17,8 @@ export default defineConfig({
   },
   server: {
     host: true,
+    port: 5173,
+    strictPort: true,
     allowedHosts: [
       'hemou-macmini.local',
       'hemou-macmini',

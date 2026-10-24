@@ -1,12 +1,13 @@
+import { isTauri } from '@tauri-apps/api/core'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '../api/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('access_token'))
-  const user = ref<any>(JSON.parse(localStorage.getItem('user') || 'null'))
+  const user = ref<any>(isTauri() ? { id: 0, username: '本机工作区', display_name: '本机工作区', role: 'ADMIN' } : JSON.parse(localStorage.getItem('user') || 'null'))
 
-  const isAuthenticated = computed(() => !!token.value)
+  const isAuthenticated = computed(() => isTauri() || !!token.value)
 
   async function login(credentials: any) {
     const res = await authApi.login(credentials)

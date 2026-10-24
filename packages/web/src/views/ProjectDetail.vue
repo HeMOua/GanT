@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmAction } from '../api/dialogs'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectStore } from '../stores/project'
@@ -33,7 +34,7 @@ onMounted(async () => {
       const res = await api.get('/users')
       users.value = res.data
     } catch(e) {
-      console.error('Failed to load users', e)
+      users.value = []
     }
   }
 })
@@ -44,7 +45,7 @@ function goBack() {
 
 function handleTaskClick(task: GanttTask) {
   // Can be used to highlight task details
-  console.log('Clicked', task)
+  // Selection is handled by the chart; task contents stay out of logs.
 }
 
 function handleTaskDblclick(task: GanttTask) {
@@ -70,7 +71,7 @@ async function handleSaveTask(taskData: any) {
 }
 
 async function handleDeleteTask(taskId: number) {
-  if (confirm('确定要删除这个任务吗？相关依赖也会被清除。')) {
+  if (await confirmAction('确定要删除这个任务吗？相关依赖也会被清除。')) {
     await taskStore.deleteTask(taskId, projectId)
     isEditing.value = false
   }
@@ -87,7 +88,7 @@ async function handleRemoveAssignee(taskId: number, assigneeId: number) {
 }
 
 async function generateMocks() {
-  if (confirm('这将清除当前项目的所有任务，并填充演示数据。确定继续吗？')) {
+  if (await confirmAction('向空项目添加演示任务？')) {
     isGeneratingMocks.value = true
     try {
       await projectStore.seedProject(projectId)

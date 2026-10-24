@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { confirmAction, showMessage } from '../api/dialogs'
+import { isTauri } from '@tauri-apps/api/core'
 import { ref, onMounted } from 'vue'
 import api from '../api/client'
 
+const desktop = isTauri()
 const users = ref<any[]>([])
 const loading = ref(true)
 const showAddModal = ref(false)
@@ -13,8 +16,7 @@ async function loadUsers() {
     const res = await api.get('/users')
     users.value = res.data
   } catch (e) {
-    console.error('Failed to load users', e)
-    alert('加载用户失败')
+    await showMessage('加载用户失败')
   } finally {
     loading.value = false
   }
@@ -31,18 +33,18 @@ async function handleAddUser() {
     newUser.value = { username: '', display_name: '', password: '', role: 'USER' }
     await loadUsers()
   } catch (e: any) {
-    alert(e.response?.data?.message || '添加失败')
+    await showMessage(e.response?.data?.message || '添加失败')
   }
 }
 
 async function toggleRole(user: any) {
   const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN'
-  if (confirm(`确定要将 ${user.display_name} 的角色改为 ${newRole === 'ADMIN' ? '管理员' : '普通用户'} 吗？`)) {
+  if (await confirmAction(`确定要将 ${user.display_name} 的角色改为 ${newRole === 'ADMIN' ? '管理员' : '普通用户'} 吗？`)) {
     try {
       await api.patch(`/users/${user.id}/role`, { role: newRole })
       user.role = newRole
     } catch (e) {
-      alert('更新角色失败')
+      await showMessage('更新角色失败')
     }
   }
 }
@@ -52,8 +54,8 @@ async function toggleRole(user: any) {
   <div class="team-container">
     <header class="page-header">
       <div class="header-left">
-        <h1 class="page-title">团队管理</h1>
-        <p class="page-subtitle">管理所有团队成员及其权限</p>
+        <h1 class="page-title">成员管理</h1>
+        <p class="page-subtitle">管理任务负责人</p>
       </div>
       
       <button class="btn-primary" @click="showAddModal = true">
@@ -64,7 +66,7 @@ async function toggleRole(user: any) {
 
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
-      <p>加载收集中...</p>
+      <p>正在加载...</p>
     </div>
 
     <div v-else class="user-list">
@@ -72,10 +74,10 @@ async function toggleRole(user: any) {
         <thead>
           <tr>
             <th>成员</th>
-            <th>账号ID</th>
-            <th>角色 / 权限</th>
+            <th v-if="!desktop">账号ID</th>
+            <th v-if="!desktop">角色 / 权限</th>
             <th>加入时间</th>
-            <th>操作</th>
+            <th v-if="!desktop">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -86,14 +88,14 @@ async function toggleRole(user: any) {
                 <span class="display-name">{{ user.display_name || user.username }}</span>
               </div>
             </td>
-            <td><span class="text-sm code-text">{{ user.username }}</span></td>
-            <td>
+            <td v-if="!desktop"><span class="text-sm code-text">{{ user.username }}</span></td>
+            <td v-if="!desktop">
               <span class="role-badge" :class="user.role.toLowerCase()">
                 {{ user.role === 'ADMIN' ? '管理员 (Admin)' : '普通用户 (User)' }}
               </span>
             </td>
             <td><span class="text-sm date-text">{{ new Date(user.created_at).toLocaleDateString() }}</span></td>
-            <td>
+            <td v-if="!desktop">
               <button 
                 class="btn-text secondary" 
                 @click="toggleRole(user)"
@@ -115,7 +117,7 @@ async function toggleRole(user: any) {
         </div>
         
         <form @submit.prevent="handleAddUser" class="modal-body">
-          <div class="form-group">
+          <div v-if="!desktop" class="form-group">
             <label>登录账号 <span class="required">*</span></label>
             <input type="text" v-model="newUser.username" required placeholder="用于登录的账号 ID" />
           </div>
@@ -125,12 +127,12 @@ async function toggleRole(user: any) {
             <input type="text" v-model="newUser.display_name" required placeholder="如：张伟" />
           </div>
           
-          <div class="form-group">
+          <div v-if="!desktop" class="form-group">
             <label>初始密码</label>
             <input type="text" v-model="newUser.password" placeholder="留空则默认为 123456" />
           </div>
           
-          <div class="form-group">
+          <div v-if="!desktop" class="form-group">
             <label>系统角色</label>
             <select v-model="newUser.role" class="form-select">
               <option value="USER">普通用户 (参与项目)</option>
@@ -140,7 +142,7 @@ async function toggleRole(user: any) {
           
           <div class="modal-footer">
             <button type="button" class="btn-cancel" @click="showAddModal = false">取消</button>
-            <button type="submit" class="btn-primary" :disabled="!newUser.username || !newUser.display_name">添加成员</button>
+            <button type="submit" class="btn-primary" :disabled="(!desktop && !newUser.username) || !newUser.display_name">添加成员</button>
           </div>
         </form>
       </div>

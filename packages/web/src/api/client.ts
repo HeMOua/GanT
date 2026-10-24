@@ -1,3 +1,4 @@
+import { invoke, isTauri } from '@tauri-apps/api/core'
 import axios from 'axios'
 import router from '../router'
 
@@ -8,6 +9,22 @@ const apiClient = axios.create({
     'Content-Type': 'application/json'
   }
 })
+
+// Desktop requests never open an HTTP connection.
+if (isTauri()) {
+  apiClient.defaults.adapter = async config => {
+    try {
+      const data = await invoke('local_request', {
+        method: (config.method || 'get').toUpperCase(),
+        path: config.url,
+        data: typeof config.data === 'string' ? JSON.parse(config.data) : config.data ?? null,
+      })
+      return { data, status: 200, statusText: 'OK', headers: {}, config }
+    } catch (message) {
+      return Promise.reject({ message: String(message), response: { data: { message: String(message) } } })
+    }
+  }
+}
 
 // Request interceptor for API calls
 apiClient.interceptors.request.use(

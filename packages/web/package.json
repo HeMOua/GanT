@@ -11,6 +11,7 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
     "axios": "^1.7.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.30",
