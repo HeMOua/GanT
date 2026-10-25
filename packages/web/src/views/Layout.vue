@@ -1,235 +1,221 @@
 <script setup lang="ts">
-import { isTauri, invoke } from '@tauri-apps/api/core'
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
-
-const desktop = isTauri()
-const backupMessage = ref('')
+import { isTauri, invoke } from "@tauri-apps/api/core";
+import { ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { NButton, NTag, useMessage } from "naive-ui";
+import {
+  ChartNoAxesGantt,
+  FolderKanban,
+  UsersRound,
+  DatabaseBackup,
+  LogOut,
+  ChevronRight,
+} from "@lucide/vue";
+import { useAuthStore } from "../stores/auth";
+const desktop = isTauri();
+const route = useRoute();
+const router = useRouter();
+const auth = useAuthStore();
+const message = useMessage();
+const backingUp = ref(false);
 async function backup() {
-  try { backupMessage.value = await invoke<string>('backup_workspace') }
-  catch { backupMessage.value = '备份失败，请检查目标文件夹是否可写' }
+  backingUp.value = true;
+  try {
+    const result = await invoke<string>("backup_workspace");
+    if (result) message.success(result);
+  } catch {
+    message.error("备份失败，请选择可写的文件夹和新的文件名");
+  } finally {
+    backingUp.value = false;
+  }
 }
-const router = useRouter()
-const authStore = useAuthStore()
-
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
+function logout() {
+  auth.logout();
+  router.push("/login");
 }
 </script>
-
 <template>
-  <div class="layout">
-    <!-- 侧边导航 -->
+  <div class="workspace">
     <aside class="sidebar">
       <div class="brand">
-        <span class="logo">📊</span>
-        <span class="name">GanT</span>
+        <div class="brand-symbol"><ChartNoAxesGantt :size="23" /></div>
+        <div><strong>GanT</strong><span>项目工作台</span></div>
       </div>
-
-      <nav class="nav-menu">
-        <router-link to="/" class="nav-item" exact-active-class="active">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-          项目管理
-        </router-link>
-        <router-link v-if="authStore.user?.role === 'ADMIN'" to="/team" class="nav-item" exact-active-class="active">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-          成员管理
-        </router-link>
+      <div class="nav-caption">工作区</div>
+      <nav>
+        <RouterLink
+          to="/"
+          class="nav-item"
+          :class="{ active: route.path !== '/team' }"
+          ><FolderKanban :size="18" /><span>项目计划</span
+          ><ChevronRight :size="14"
+        /></RouterLink>
+        <RouterLink
+          v-if="auth.user?.role === 'ADMIN'"
+          to="/team"
+          class="nav-item"
+          :class="{ active: route.path === '/team' }"
+          ><UsersRound :size="18" /><span>成员管理</span
+          ><ChevronRight :size="14"
+        /></RouterLink>
       </nav>
-
-      <div v-if="desktop" class="backup-area"><button @click="backup">备份数据…</button><p role="status">{{ backupMessage }}</p></div>
-      <div class="user-profile">
-        <div class="avatar">{{ authStore.user?.username?.charAt(0).toUpperCase() || 'U' }}</div>
-        <div class="user-info">
-          <div class="username">{{ authStore.user?.display_name || authStore.user?.username }}</div>
-          <div class="role">{{ desktop ? '离线使用' : authStore.user?.role === 'ADMIN' ? '管理员' : '成员' }}</div>
+      <div class="sidebar-bottom">
+        <NButton
+          v-if="desktop"
+          secondary
+          block
+          :loading="backingUp"
+          @click="backup"
+          ><template #icon><DatabaseBackup /></template>备份数据</NButton
+        >
+        <div class="profile">
+          <div class="avatar">
+            {{
+              (auth.user?.display_name || auth.user?.username || "我").slice(
+                0,
+                1,
+              )
+            }}
+          </div>
+          <div class="profile-name">
+            <strong>{{ auth.user?.display_name || auth.user?.username }}</strong
+            ><NTag size="small" :bordered="false" type="success">{{
+              desktop ? "本地工作区" : "在线工作区"
+            }}</NTag>
+          </div>
+          <NButton
+            v-if="!desktop"
+            quaternary
+            circle
+            aria-label="退出登录"
+            @click="logout"
+            ><template #icon><LogOut /></template
+          ></NButton>
         </div>
-        <button v-if="!desktop" class="logout-btn" @click="handleLogout" title="退出登录">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-        </button>
       </div>
     </aside>
-
-    <!-- 主内容区 -->
-    <main class="main-content">
-      <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
-    </main>
+    <main class="workspace-main"><RouterView /></main>
   </div>
 </template>
-
 <style scoped>
-.backup-area { padding: 0 20px; font-size: 12px; color: #64748b; }
-.backup-area button { cursor: pointer; padding: 8px 12px; background: #eff6ff; color: #2563eb; border: 0; border-radius: 8px; }
-.layout {
+.workspace {
   display: flex;
-  height: 100vh;
-  width: 100vw;
-  background: #f8fafc;
-  overflow: hidden;
-  font-family: 'Inter', system-ui, sans-serif;
+  height: 100%;
+  background: var(--page);
 }
-
-/* 侧边栏 */
 .sidebar {
-  width: 260px;
-  background: #ffffff;
-  border-right: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
+  width: 208px;
   flex-shrink: 0;
-  z-index: 10;
-}
-
-.brand {
-  height: 72px;
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-  gap: 12px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.brand .logo {
-  font-size: 28px;
-}
-
-.brand .name {
-  font-size: 20px;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.5px;
-}
-
-.nav-menu {
-  flex: 1;
-  padding: 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  border-right: 1px solid var(--line);
+  background: #fff;
 }
-
-.nav-item {
+.brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  color: #64748b;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 15px;
-  transition: all 0.2s ease;
+  gap: 11px;
+  padding: 28px 22px 32px;
 }
-
-.nav-item .icon {
-  width: 20px;
-  height: 20px;
-}
-
-.nav-item:hover:not(.disabled) {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
-.nav-item.active {
-  background: #eff6ff;
-  color: #2563eb;
-}
-
-.nav-item.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.user-profile {
-  padding: 20px;
-  border-top: 1px solid #f1f5f9;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #c084fc, #3b82f6);
+.brand-symbol {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--blue);
   color: #fff;
+}
+.brand strong {
+  font-size: 21px;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+  display: block;
+}
+.brand span {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 1.5px;
+  display: block;
+  margin-top: 3px;
+}
+.nav-caption {
+  margin: 0 24px 10px;
+  font-size: 10px;
+  color: #8b97a9;
+  letter-spacing: 1px;
+}
+nav {
+  padding: 0 12px;
+}
+.nav-item {
+  text-decoration: none;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+  gap: 10px;
+  padding: 12px;
+  color: #617088;
+  border-radius: 6px;
+  margin-bottom: 5px;
+  font-size: 13px;
 }
-
-.user-info {
+.nav-item span {
+  flex: 1;
+}
+.nav-item > svg:last-child {
+  opacity: 0;
+}
+.nav-item.active {
+  color: var(--blue);
+  background: #edf2fd;
+  font-weight: 600;
+}
+.nav-item.active > svg:last-child {
+  opacity: 1;
+}
+.nav-item:hover {
+  background: #f4f6fa;
+}
+.sidebar-bottom {
+  margin-top: auto;
+  padding: 16px;
+}
+.profile {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  background: #e9eef9;
+  color: var(--blue);
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+}
+.profile-name {
   flex: 1;
   min-width: 0;
 }
-
-.username {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1e293b;
+.profile-name strong {
+  display: block;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 4px;
 }
-
-.role {
-  font-size: 12px;
-  color: #94a3b8;
-  margin-top: 2px;
+.profile-name :deep(.n-tag) {
+  font-size: 10px;
+  height: 19px;
 }
-
-.logout-btn {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.logout-btn:hover {
-  background: #fee2e2;
-  color: #ef4444;
-}
-
-/* 主内容区 */
-.main-content {
+.workspace-main {
   flex: 1;
   min-width: 0;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 路由动画 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.fade-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
+  min-height: 0;
 }
 </style>

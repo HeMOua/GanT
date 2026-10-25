@@ -11,8 +11,11 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@lucide/vue": "^1.61.0",
     "@tauri-apps/api": "^2.12.4",
     "axios": "^1.7.0",
+    "dhtmlx-gantt": "10.0.3",
+    "naive-ui": "2.45.3",
     "pinia": "^3.0.4",
     "vue": "^3.5.30",
     "vue-router": "^5.0.3"

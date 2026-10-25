@@ -1,367 +1,313 @@
 <script setup lang="ts">
-import { confirmAction } from '../api/dialogs'
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useProjectStore } from '../stores/project'
-import { useTaskStore } from '../stores/task'
-import { useAuthStore } from '../stores/auth'
-import { GanttChart } from '../components/gantt'
-import type { GanttTask, ViewMode } from '../components/gantt'
-import TaskEditDialog from '../components/TaskEditDialog.vue'
-
-const props = defineProps<{
-  id: string
-}>()
-
-const router = useRouter()
-const projectStore = useProjectStore()
-const taskStore = useTaskStore()
-const authStore = useAuthStore()
-
-const projectId = parseInt(props.id, 10)
-const viewMode = ref<ViewMode>('day')
-const isEditing = ref(false)
-const selectedTask = ref<any>(null)
-const isGeneratingMocks = ref(false)
-const users = ref<any[]>([])
-
-onMounted(async () => {
-  await projectStore.fetchProjectById(projectId)
-  await taskStore.fetchTasks(projectId)
-  if (authStore.user?.role === 'ADMIN') {
-    try {
-      const { default: api } = await import('../api/client')
-      const res = await api.get('/users')
-      users.value = res.data
-    } catch(e) {
-      users.value = []
-    }
-  }
-})
-
-function goBack() {
-  router.push('/')
-}
-
-function handleTaskClick(task: GanttTask) {
-  // Can be used to highlight task details
-  // Selection is handled by the chart; task contents stay out of logs.
-}
-
-function handleTaskDblclick(task: GanttTask) {
-  // Open task edit dialog
-  selectedTask.value = taskStore.tasks.find(t => t.id === task.id) || null
-  if (selectedTask.value) {
-    isEditing.value = true
+import { ref, computed, onMounted, watch } from "vue";
+import { useRouter } from "vue-router";
+import {
+  NButton,
+  NTag,
+  NEmpty,
+  NSpin,
+  NAlert,
+  useMessage,
+  useDialog,
+} from "naive-ui";
+import { Plus, ArrowLeft, FlaskConical } from "@lucide/vue";
+import { useProjectStore } from "../stores/project";
+import { useTaskStore } from "../stores/task";
+import { useAuthStore } from "../stores/auth";
+import {
+  GanttChart,
+  type GanttTask,
+  type DependencyType,
+} from "../components/gantt";
+import TaskEditDialog from "../components/TaskEditDialog.vue";
+import api from "../api/client";
+const props = defineProps<{ id: string }>();
+const router = useRouter(),
+  project = useProjectStore(),
+  tasks = useTaskStore(),
+  auth = useAuthStore(),
+  message = useMessage(),
+  dialog = useDialog();
+const projectId = computed(() => Number(props.id)),
+  isAdmin = computed(() => auth.user?.role === "ADMIN");
+const selected = ref<any>(null),
+  editing = ref(false),
+  saving = ref(false),
+  generating = ref(false),
+  failed = ref(false),
+  users = ref<any[]>([]);
+const counts = computed(() => ({
+  done: tasks.tasks.filter((t) => t.status === "DONE").length,
+  active: tasks.tasks.filter((t) => t.status === "IN_PROGRESS").length,
+}));
+async function load() {
+  failed.value = false;
+  selected.value = null;
+  editing.value = false;
+  try {
+    await project.fetchProjectById(projectId.value);
+    await tasks.fetchTasks(projectId.value);
+    if (isAdmin.value) users.value = (await api.get("/users")).data;
+  } catch {
+    failed.value = true;
   }
 }
-
-function handleCreateTask() {
-  selectedTask.value = null
-  isEditing.value = true
+onMounted(load);
+watch(projectId, load);
+function edit(t: GanttTask) {
+  selected.value = tasks.tasks.find((x) => x.id === t.id) || null;
+  editing.value = !!selected.value;
 }
-
-async function handleSaveTask(taskData: any) {
-  if (selectedTask.value) {
-    await taskStore.updateTask(selectedTask.value.id, taskData, projectId)
-  } else {
-    await taskStore.createTask(projectId, taskData)
+function create() {
+  selected.value = null;
+  editing.value = true;
+}
+async function save(data: any) {
+  if (saving.value) return;
+  saving.value = true;
+  try {
+    if (selected.value)
+      await tasks.updateTask(selected.value.id, data, projectId.value);
+    else await tasks.createTask(projectId.value, data);
+    editing.value = false;
+    message.success("任务已保存");
+  } catch (e: any) {
+    message.error(e.response?.data?.message || "保存失败，请重试");
+  } finally {
+    saving.value = false;
   }
-  isEditing.value = false
 }
-
-async function handleDeleteTask(taskId: number) {
-  if (await confirmAction('确定要删除这个任务吗？相关依赖也会被清除。')) {
-    await taskStore.deleteTask(taskId, projectId)
-    isEditing.value = false
+function remove(id: number) {
+  dialog.warning({
+    title: "删除任务",
+    content: "该任务及其依赖将被删除，子任务会保留为根任务。",
+    positiveText: "删除任务",
+    negativeText: "取消",
+    onPositiveClick: async () => {
+      try {
+        await tasks.deleteTask(id, projectId.value);
+        editing.value = false;
+        message.success("任务已删除");
+      } catch {
+        message.error("删除失败，请重试");
+      }
+    },
+  });
+}
+async function assign(id: number, userId: number) {
+  try {
+    await tasks.addAssignee(id, { user_id: userId }, projectId.value);
+    selected.value = tasks.tasks.find((x) => x.id === id);
+  } catch {
+    message.error("指派失败，请重试");
   }
 }
-
-async function handleAddAssignee(taskId: number, userId: number) {
-  await taskStore.addAssignee(taskId, { user_id: userId }, projectId)
-  selectedTask.value = taskStore.tasks.find((t: any) => t.id === taskId) || null
-}
-
-async function handleRemoveAssignee(taskId: number, assigneeId: number) {
-  await taskStore.removeAssignee(taskId, assigneeId, projectId)
-  selectedTask.value = taskStore.tasks.find((t: any) => t.id === taskId) || null
-}
-
-async function generateMocks() {
-  if (await confirmAction('向空项目添加演示任务？')) {
-    isGeneratingMocks.value = true
-    try {
-      await projectStore.seedProject(projectId)
-      await taskStore.fetchTasks(projectId)
-    } finally {
-      isGeneratingMocks.value = false
-    }
+async function unassign(id: number, assigneeId: number) {
+  try {
+    await tasks.removeAssignee(id, assigneeId, projectId.value);
+    selected.value = tasks.tasks.find((x) => x.id === id);
+  } catch {
+    message.error("移除失败，请重试");
   }
+}
+function seed() {
+  dialog.info({
+    title: "添加演示任务",
+    content: "向当前空项目添加三项示例任务及依赖。",
+    positiveText: "添加演示任务",
+    negativeText: "取消",
+    onPositiveClick: async () => {
+      generating.value = true;
+      try {
+        await project.seedProject(projectId.value);
+        await tasks.fetchTasks(projectId.value);
+      } catch {
+        message.error("添加失败，请重试");
+      } finally {
+        generating.value = false;
+      }
+    },
+  });
+}
+async function move(id: number, patch: any) {
+  await tasks.updateTask(id, patch, projectId.value);
+}
+async function link(
+  id: number,
+  data: { depends_on_task_id: number; type: DependencyType; lag?: number },
+) {
+  await tasks.addDependency(id, data, projectId.value);
+}
+async function unlink(id: number, depId: number) {
+  await tasks.removeDependency(id, depId, projectId.value);
 }
 </script>
-
 <template>
-  <div class="project-detail">
-    <div v-if="projectStore.loading && !projectStore.currentProject" class="loading-state">
-      <div class="spinner"></div>
-    </div>
-    
-    <template v-else-if="projectStore.currentProject">
-      <header class="detail-header">
-        <div class="header-left">
-          <button class="back-btn" @click="goBack">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-          </button>
-          
-          <div class="project-info">
-            <h1 class="project-name">{{ projectStore.currentProject.name }}</h1>
-            <p class="project-desc">{{ projectStore.currentProject.description || '无描述' }}</p>
+  <section class="page project-detail">
+    <header class="page-header">
+      <div class="heading">
+        <NButton
+          quaternary
+          circle
+          aria-label="返回项目列表"
+          @click="router.push('/')"
+          ><template #icon><ArrowLeft /></template
+        ></NButton>
+        <div>
+          <div class="title-row">
+            <h1 class="page-title">
+              {{
+                project.currentProject?.id === projectId
+                  ? project.currentProject.name
+                  : "项目计划"
+              }}
+            </h1>
+            <NTag size="small" :bordered="false" type="info">甘特视图</NTag>
           </div>
+          <p class="page-subtitle">
+            {{
+              project.currentProject?.description ||
+              "安排任务、连接依赖并跟踪交付进度"
+            }}
+          </p>
         </div>
-        
-        <div class="header-right" v-if="authStore.user?.role === 'ADMIN'">
-          <button 
-            v-if="taskStore.tasks.length === 0" 
-            class="btn-outline seed-btn" 
-            @click="generateMocks" 
-            :disabled="isGeneratingMocks"
+      </div>
+      <div class="toolbar">
+        <NButton
+          v-if="isAdmin && !tasks.tasks.length"
+          :loading="generating"
+          @click="seed"
+          ><template #icon><FlaskConical /></template>演示任务</NButton
+        ><NButton v-if="isAdmin" type="primary" @click="create"
+          ><template #icon><Plus /></template>添加任务</NButton
+        >
+      </div>
+    </header>
+    <NAlert
+      v-if="failed"
+      type="error"
+      title="项目加载失败"
+      style="margin: 20px; width: auto"
+      ><NButton text @click="load">重新加载</NButton></NAlert
+    >
+    <template v-else
+      ><div class="project-summary">
+        <span
+          ><strong>{{ tasks.tasks.length }}</strong> 项任务</span
+        ><span><i class="dot blue" />{{ counts.active }} 项进行中</span
+        ><span><i class="dot green" />{{ counts.done }} 项已完成</span>
+        <div class="summary-right">
+          <span class="text-muted">计划周期</span
+          ><span
+            >{{ project.currentProject?.start_date || "未设置" }} —
+            {{ project.currentProject?.end_date || "未设置" }}</span
           >
-            <span v-if="isGeneratingMocks" class="spinner-small"></span>
-            <span v-else>🧪 填充演示数据</span>
-          </button>
-          
-          <button class="btn-primary" @click="handleCreateTask">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
-            添加任务
-          </button>
         </div>
-      </header>
-
-      <main class="gantt-container">
-        <div v-if="taskStore.loading && taskStore.tasks.length === 0" class="loading-overlay">
-          <div class="spinner"></div>
-          <p>加载任务中...</p>
-        </div>
-        
-        <GanttChart
-          v-if="taskStore.tasks.length > 0"
-          :tasks="taskStore.tasks"
-          :view-mode="viewMode"
-          :row-height="40"
-          :show-today="true"
-          @task-click="handleTaskClick"
-          @task-dblclick="handleTaskDblclick"
+      </div>
+      <div class="chart-area">
+        <NSpin
+          v-if="tasks.loading && !tasks.tasks.length"
+          style="display: grid; place-items: center; height: 100%"
+        /><GanttChart
+          v-else-if="tasks.tasks.length"
+          :key="projectId"
+          :tasks="tasks.tasks"
+          :readonly="!isAdmin"
+          :save-task="isAdmin ? move : undefined"
+          :add-dependency="isAdmin ? link : undefined"
+          :remove-dependency="isAdmin ? unlink : undefined"
+          @task-dblclick="edit"
         />
-        
-        <div v-if="!taskStore.loading && taskStore.tasks.length === 0" class="empty-gantt">
-          <div class="empty-icon">📊</div>
-          <h3>甘特图为空</h3>
-          <p>这个项目还没有任何任务。点击右上角的"添加任务"，或者快速填充演示数据。</p>
+        <div v-else class="empty-plan">
+          <NEmpty description="还没有任务，先安排第一项工作"
+            ><template #extra
+              ><NButton v-if="isAdmin" @click="create"
+                >添加任务</NButton
+              ></template
+            ></NEmpty
+          >
         </div>
-      </main>
-    </template>
-    
-    <div v-else class="error-state">
-      <h3>无法加载项目信息</h3>
-      <button class="btn-primary" @click="goBack">返回列表</button>
-    </div>
-
+      </div></template
+    >
     <TaskEditDialog
-      v-if="isEditing"
-      :task="selectedTask"
+      v-if="editing"
+      :task="selected"
       :members="users"
-      :all-tasks="taskStore.tasks"
-      @close="isEditing = false"
-      @save="handleSaveTask"
-      @delete="handleDeleteTask"
-      @add-assignee="handleAddAssignee"
-      @remove-assignee="handleRemoveAssignee"
+      :all-tasks="tasks.tasks"
+      :saving="saving"
+      @close="editing = false"
+      @save="save"
+      @delete="remove"
+      @add-assignee="assign"
+      @remove-assignee="unassign"
     />
-  </div>
+  </section>
 </template>
-
 <style scoped>
-.project-detail {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: #f8fafc;
-}
-
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 32px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  flex-shrink: 0;
-}
-
-.header-left {
+.heading {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
+  min-width: 0;
 }
-
-.back-btn {
-  background: #f1f5f9;
-  border: none;
-  color: #475569;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.back-btn:hover {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-.project-name {
-  font-size: 20px;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 4px;
-}
-
-.project-desc {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.header-right {
+.title-row {
   display: flex;
   gap: 12px;
-}
-
-.btn-primary {
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #3b82f6, #4f46e5);
-  color: white;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 14px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
 }
-
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 10px -2px rgba(59, 130, 246, 0.3);
+.page-subtitle {
+  max-width: 650px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-.btn-outline {
-  display: inline-flex;
+.project-summary {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  background: white;
-  border: 1px solid #e2e8f0;
-  color: #1e293b;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: 24px;
+  padding: 15px 28px;
+  font-size: 11px;
+  color: #5d6e88;
+  flex-shrink: 0;
 }
-
-.btn-outline:hover:not(:disabled) {
-  border-color: #cbd5e1;
-  background: #f8fafc;
+.project-summary > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-
-.btn-outline:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.project-summary strong {
+  font-size: 15px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
-
-.gantt-container {
+.dot {
+  height: 6px;
+  width: 6px;
+  border-radius: 50%;
+}
+.blue {
+  background: #3567d6;
+}
+.green {
+  background: #1f8a70;
+}
+.summary-right {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.chart-area {
   flex: 1;
-  padding: 24px 32px;
-  overflow: hidden; /* Give over control to Gantt components inner wrapper */
-  position: relative;
+  min-height: 0;
+  padding: 0 20px 20px;
 }
-
-.loading-state, .error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.empty-plan {
   height: 100%;
-}
-
-.loading-overlay {
-  position: absolute;
-  inset: 24px 32px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(2px);
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e2e8f0;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
-}
-
-.spinner-small {
-  width: 16px;
-  height: 16px;
-  border: 2px solid #e2e8f0;
-  border-top-color: #64748b;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.empty-gantt {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  background: #ffffff;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.8;
-}
-
-.empty-gantt h3 {
-  font-size: 18px;
-  color: #0f172a;
-  margin-bottom: 8px;
-}
-
-.empty-gantt p {
-  color: #64748b;
-  font-size: 14px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
 }
 </style>

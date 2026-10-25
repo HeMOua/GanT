@@ -1,398 +1,223 @@
 <script setup lang="ts">
-import { confirmAction, showMessage } from '../api/dialogs'
-import { isTauri } from '@tauri-apps/api/core'
-import { ref, onMounted } from 'vue'
-import api from '../api/client'
-
-const desktop = isTauri()
-const users = ref<any[]>([])
-const loading = ref(true)
-const showAddModal = ref(false)
-const newUser = ref({ username: '', display_name: '', password: '', role: 'USER' })
-
-async function loadUsers() {
-  loading.value = true
+import { h, ref, onMounted } from "vue";
+import { isTauri } from "@tauri-apps/api/core";
+import {
+  NButton,
+  NDataTable,
+  NModal,
+  NForm,
+  NFormItem,
+  NInput,
+  NSelect,
+  NTag,
+  NEmpty,
+  NAlert,
+  useMessage,
+  useDialog,
+  type DataTableColumns,
+} from "naive-ui";
+import { Plus } from "@lucide/vue";
+import api from "../api/client";
+const desktop = isTauri(),
+  message = useMessage(),
+  dialog = useDialog();
+const users = ref<any[]>([]),
+  loading = ref(false),
+  show = ref(false),
+  saving = ref(false),
+  failed = ref(false);
+const draft = ref({
+  username: "",
+  display_name: "",
+  password: "",
+  role: "USER",
+});
+const columns: DataTableColumns<any> = [
+  {
+    title: "成员",
+    key: "display_name",
+    render: (u) =>
+      h("div", { class: "member-name" }, [
+        h(
+          "span",
+          { class: "member-avatar" },
+          (u.display_name || u.username || "成").slice(0, 1),
+        ),
+        h("strong", u.display_name || u.username),
+      ]),
+  },
+  ...(!desktop
+    ? ([
+        { title: "账号", key: "username" },
+        {
+          title: "权限",
+          key: "role",
+          render: (u: any) =>
+            h(
+              NTag,
+              {
+                size: "small",
+                bordered: false,
+                type: u.role === "ADMIN" ? "info" : "default",
+              },
+              () => (u.role === "ADMIN" ? "管理员" : "成员"),
+            ),
+        },
+        {
+          title: "操作",
+          key: "actions",
+          render: (u: any) =>
+            h(
+              NButton,
+              { size: "small", quaternary: true, onClick: () => toggle(u) },
+              () => "切换权限",
+            ),
+        },
+      ] as DataTableColumns<any>)
+    : []),
+  {
+    title: "加入日期",
+    key: "created_at",
+    width: 160,
+    render: (u) =>
+      u.created_at ? new Date(u.created_at).toLocaleDateString("zh-CN") : "—",
+  },
+];
+async function load() {
+  loading.value = true;
+  failed.value = false;
   try {
-    const res = await api.get('/users')
-    users.value = res.data
-  } catch (e) {
-    await showMessage('加载用户失败')
+    users.value = (await api.get("/users")).data;
+  } catch {
+    failed.value = true;
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
-
-onMounted(() => {
-  loadUsers()
-})
-
-async function handleAddUser() {
+onMounted(load);
+async function create() {
+  if (
+    !draft.value.display_name.trim() ||
+    (!desktop && !draft.value.username.trim())
+  ) {
+    message.warning("请填写必填信息");
+    return;
+  }
+  saving.value = true;
   try {
-    await api.post('/users', newUser.value)
-    showAddModal.value = false
-    newUser.value = { username: '', display_name: '', password: '', role: 'USER' }
-    await loadUsers()
-  } catch (e: any) {
-    await showMessage(e.response?.data?.message || '添加失败')
+    await api.post("/users", draft.value);
+    show.value = false;
+    draft.value = {
+      username: "",
+      display_name: "",
+      password: "",
+      role: "USER",
+    };
+    await load();
+    message.success("成员已添加");
+  } catch {
+    message.error("添加失败，请检查信息后重试");
+  } finally {
+    saving.value = false;
   }
 }
-
-async function toggleRole(user: any) {
-  const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN'
-  if (await confirmAction(`确定要将 ${user.display_name} 的角色改为 ${newRole === 'ADMIN' ? '管理员' : '普通用户'} 吗？`)) {
-    try {
-      await api.patch(`/users/${user.id}/role`, { role: newRole })
-      user.role = newRole
-    } catch (e) {
-      await showMessage('更新角色失败')
-    }
-  }
+function toggle(u: any) {
+  const role = u.role === "ADMIN" ? "USER" : "ADMIN";
+  dialog.warning({
+    title: "修改成员权限",
+    content: "确认修改该成员的权限？",
+    positiveText: "确认修改",
+    negativeText: "取消",
+    onPositiveClick: async () => {
+      try {
+        await api.patch(`/users/${u.id}/role`, { role });
+        await load();
+      } catch {
+        message.error("修改失败");
+      }
+    },
+  });
 }
 </script>
-
 <template>
-  <div class="team-container">
+  <section class="page">
     <header class="page-header">
-      <div class="header-left">
+      <div>
         <h1 class="page-title">成员管理</h1>
-        <p class="page-subtitle">管理任务负责人</p>
+        <p class="page-subtitle">
+          {{ desktop ? "维护项目的任务负责人" : "维护团队成员与访问权限" }}
+        </p>
       </div>
-      
-      <button class="btn-primary" @click="showAddModal = true">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
-        添加成员
-      </button>
+      <NButton type="primary" @click="show = true"
+        ><template #icon><Plus /></template>添加成员</NButton
+      >
     </header>
-
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>正在加载...</p>
+    <div class="page-content">
+      <p class="section-caption">共 {{ users.length }} 位成员</p>
+      <NAlert v-if="failed" type="error" title="成员加载失败"
+        ><NButton text @click="load">重新加载</NButton></NAlert
+      ><NDataTable
+        :columns="columns"
+        :data="users"
+        :loading="loading"
+        :bordered="false"
+        :row-key="(u) => u.id"
+        ><template #empty
+          ><NEmpty description="添加成员后，即可为任务指派负责人" /></template
+      ></NDataTable>
     </div>
-
-    <div v-else class="user-list">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>成员</th>
-            <th v-if="!desktop">账号ID</th>
-            <th v-if="!desktop">角色 / 权限</th>
-            <th>加入时间</th>
-            <th v-if="!desktop">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="user in users" :key="user.id">
-            <td>
-              <div class="user-cell">
-                <div class="avatar">{{ user.username?.charAt(0).toUpperCase() || 'U' }}</div>
-                <span class="display-name">{{ user.display_name || user.username }}</span>
-              </div>
-            </td>
-            <td v-if="!desktop"><span class="text-sm code-text">{{ user.username }}</span></td>
-            <td v-if="!desktop">
-              <span class="role-badge" :class="user.role.toLowerCase()">
-                {{ user.role === 'ADMIN' ? '管理员 (Admin)' : '普通用户 (User)' }}
-              </span>
-            </td>
-            <td><span class="text-sm date-text">{{ new Date(user.created_at).toLocaleDateString() }}</span></td>
-            <td v-if="!desktop">
-              <button 
-                class="btn-text secondary" 
-                @click="toggleRole(user)"
-              >
-                切换角色
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- 添加成员弹窗 -->
-    <div v-if="showAddModal" class="modal-overlay" @mousedown.self="showAddModal = false">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>添加新成员</h2>
-          <button class="close-btn" @click="showAddModal = false">关闭</button>
-        </div>
-        
-        <form @submit.prevent="handleAddUser" class="modal-body">
-          <div v-if="!desktop" class="form-group">
-            <label>登录账号 <span class="required">*</span></label>
-            <input type="text" v-model="newUser.username" required placeholder="用于登录的账号 ID" />
-          </div>
-          
-          <div class="form-group">
-            <label>显示名称 <span class="required">*</span></label>
-            <input type="text" v-model="newUser.display_name" required placeholder="如：张伟" />
-          </div>
-          
-          <div v-if="!desktop" class="form-group">
-            <label>初始密码</label>
-            <input type="text" v-model="newUser.password" placeholder="留空则默认为 123456" />
-          </div>
-          
-          <div v-if="!desktop" class="form-group">
-            <label>系统角色</label>
-            <select v-model="newUser.role" class="form-select">
-              <option value="USER">普通用户 (参与项目)</option>
-              <option value="ADMIN">管理员 (管理全局)</option>
-            </select>
-          </div>
-          
-          <div class="modal-footer">
-            <button type="button" class="btn-cancel" @click="showAddModal = false">取消</button>
-            <button type="submit" class="btn-primary" :disabled="(!desktop && !newUser.username) || !newUser.display_name">添加成员</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
+    <NModal
+      v-model:show="show"
+      preset="card"
+      title="添加成员"
+      style="width: 440px"
+      ><NForm label-placement="top" @submit.prevent="create"
+        ><NFormItem label="姓名" required
+          ><NInput
+            v-model:value="draft.display_name"
+            placeholder="输入成员姓名" /></NFormItem
+        ><template v-if="!desktop"
+          ><NFormItem label="登录账号" required
+            ><NInput v-model:value="draft.username" /></NFormItem
+          ><NFormItem label="初始密码"
+            ><NInput
+              v-model:value="draft.password"
+              type="password"
+              show-password-on="click" /></NFormItem
+          ><NFormItem label="权限"
+            ><NSelect
+              v-model:value="draft.role"
+              :options="[
+                { label: '成员', value: 'USER' },
+                { label: '管理员', value: 'ADMIN' },
+              ]" /></NFormItem
+        ></template>
+        <div style="display: flex; justify-content: flex-end; gap: 10px">
+          <NButton @click="show = false">取消</NButton
+          ><NButton type="primary" attr-type="submit" :loading="saving"
+            >添加成员</NButton
+          >
+        </div></NForm
+      ></NModal
+    >
+  </section>
 </template>
-
-<style scoped>
-.team-container {
-  padding: 32px 40px;
-  height: 100%;
-  overflow-y: auto;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 32px;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 800;
-  color: #0f172a;
-  margin-bottom: 8px;
-}
-
-.page-subtitle {
-  color: #64748b;
-  font-size: 15px;
-}
-
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #3b82f6, #4f46e5);
-  color: white;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 14px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
-}
-
-.icon {
-  width: 20px;
-  height: 20px;
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 60px;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e2e8f0;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-}
-
-.data-table th, .data-table td {
-  padding: 16px 20px;
-  text-align: left;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.data-table th {
-  background: #f8fafc;
-  font-size: 13px;
-  font-weight: 600;
-  color: #475569;
-  text-transform: uppercase;
-}
-
-.user-cell {
+<style>
+.member-name {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #3b82f6;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
+.member-name strong {
+  font-weight: 500;
 }
-
-.display-name {
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.code-text {
-  font-family: monospace;
-  background: #f1f5f9;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.text-sm {
-  font-size: 14px;
-  color: #64748b;
-}
-
-.role-badge {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 20px;
-  background: #f1f5f9;
-  color: #64748b;
-  display: inline-block;
-}
-
-.role-badge.admin {
-  background: #fee2e2;
-  color: #ef4444;
-}
-
-.role-badge.user {
-  background: #e0f2fe;
-  color: #0ea5e9;
-}
-
-.btn-text {
-  background: none;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-text.secondary {
-  color: #64748b;
-}
-.btn-text.secondary:hover {
-  color: #0f172a;
-  text-decoration: underline;
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(4px);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 20px;
-  width: 100%;
-  max-width: 460px;
-  overflow: hidden;
-}
-
-.modal-header {
-  padding: 24px 32px 16px;
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.modal-header h2 {
-  font-size: 20px;
-  color: #0f172a;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-}
-
-.modal-body {
-  padding: 24px 32px;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: #475569;
-  margin-bottom: 8px;
-}
-
-.required {
-  color: #ef4444;
-}
-
-.form-group input, .form-select {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  font-family: inherit;
-  font-size: 14px;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 32px;
-}
-
-.btn-cancel {
-  background: transparent;
-  border: none;
-  padding: 10px 20px;
-  cursor: pointer;
-  color: #64748b;
-  font-weight: 600;
+.member-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: #edf2fd;
+  color: #3567d6;
 }
 </style>

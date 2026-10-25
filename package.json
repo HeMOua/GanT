@@ -1,6 +1,6 @@
 {
   "name": "gant-workspace",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "scripts": {
     "dev:web": "pnpm --filter web dev",
@@ -12,7 +12,9 @@
     "tauri": "tauri",
     "dev:desktop": "tauri dev",
     "build:desktop": "tauri build --target universal-apple-darwin",
-    "package:app": "bash scripts/package-app.sh"
+    "package:app": "bash scripts/package-app.sh",
+    "test:gantt": "node scripts/test-gantt-adapter.mjs",
+    "verify:ui": "node scripts/ui-verify/verify.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -22,7 +24,8 @@
     ]
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.12.4"
+    "@tauri-apps/cli": "^2.12.4",
+    "playwright-core": "^1.64.1"
   },
   "packageManager": "pnpm@10.34.8"
 }

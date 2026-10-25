@@ -1,0 +1,135 @@
+:root {
+  color-scheme: light;
+  --page: #f4f6fa;
+  --ink: #24344d;
+  --muted: #738197;
+  --line: #e5eaf1;
+  --blue: #3567d6;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#app,
+.n-config-provider {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  -webkit-font-smoothing: antialiased;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+.page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.page-header {
+  min-height: 92px;
+  padding: 22px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  flex-shrink: 0;
+}
+.page-title {
+  font-size: 23px;
+  line-height: 1.4;
+  font-weight: 650;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+}
+.page-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.page-content {
+  padding: 24px 28px;
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.metric-strip {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+.metric {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.metric strong {
+  font-size: 26px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.metric span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.section-caption {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+.form-grid .n-date-picker,
+.form-grid .n-input-number {
+  width: 100%;
+}
+.text-muted {
+  color: var(--muted);
+}
+.n-button svg {
+  width: 16px;
+  height: 16px;
+}
+.n-drawer-body-content-wrapper {
+  padding: 24px !important;
+}
+@media (max-width: 1100px) {
+  .page-header {
+    padding: 18px 20px;
+  }
+  .page-content {
+    padding: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
