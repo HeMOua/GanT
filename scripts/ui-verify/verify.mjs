@@ -182,7 +182,7 @@ async function check(name, fn) {
   }
 }
 try {
-  await page.goto(base);
+  await page.goto(base + "/projects");
   await page
     .getByRole("heading", { name: project.name, exact: true })
     .waitFor();

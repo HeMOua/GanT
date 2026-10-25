@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import { NButton, NTag, useMessage } from "naive-ui";
 import {
   ChartNoAxesGantt,
+  History,
   FolderKanban,
   UsersRound,
   DatabaseBackup,
@@ -43,10 +44,11 @@ function logout() {
       </div>
       <div class="nav-caption">工作区</div>
       <nav>
+        <RouterLink to="/" class="nav-item" :class="{active: route.path === '/'}"><History :size="18"/><span>我的历程</span><ChevronRight :size="14"/></RouterLink>
         <RouterLink
-          to="/"
+          to="/projects"
           class="nav-item"
-          :class="{ active: route.path !== '/team' }"
+          :class="{ active: route.path === '/projects' || route.path.startsWith('/project/') }"
           ><FolderKanban :size="18" /><span>项目计划</span
           ><ChevronRight :size="14"
         /></RouterLink>

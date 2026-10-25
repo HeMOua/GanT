@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "GanT",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "identifier": "com.gant.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev:web",
@@ -34,7 +34,7 @@
     ],
     "macOS": {
       "minimumSystemVersion": "10.15",
-      "bundleVersion": "2",
+      "bundleVersion": "3",
       "signingIdentity": "-"
     }
   }

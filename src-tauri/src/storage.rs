@@ -111,6 +111,9 @@ fn dispatch(s: &mut Value, method: &str, path: &str, data: Value) -> Result<Valu
     let parts: Vec<_> = path.trim_matches('/').split('/').collect();
     let kind = parts[0];
     let id = parts.get(1).and_then(|x| x.parse::<i64>().ok());
+    if kind == "journeys" {
+        return crate::journey::dispatch(s, method, id, data);
+    }
     if kind == "users" || kind == "members" {
         if method == "GET" {
             return Ok(s["members"].clone());

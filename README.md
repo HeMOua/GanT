@@ -5,6 +5,12 @@ Vue 3 + Tauri 的离线项目计划工具。通用界面使用 Naive UI，甘特
 
 ## 功能
 
+- 我的历程：项目参与经历、工作阶段和重要节点，支持多次加入同一项目及并行工作。
+- 按自己、项目、人员、年份回顾，可切换时间轴、甘特图和列表，搜索角色、标签与成果。
+- 日期支持月份或具体日期，可标记大约时间；实际结束与已知情况截止分别记录。
+- 历程独立于计划任务保存，项目名称为历史快照；Web 模式按当前记录者隔离历程。
+- 删除参与经历前需先删除其工作与节点；退出项目通过编辑参与经历的记录状态完成。
+
 - 项目卡片、搜索、成员管理和统一的任务编辑抽屉。
 - 任务树、里程碑、负责人、状态与关键任务标记。
 - 日 / 周 / 月时间轴、任务搜索、状态筛选、展开 / 折叠与今天定位。
@@ -31,7 +37,7 @@ pnpm build:web
 bash scripts/package-app.sh
 ```
 
-当前版本 **1.2.0 / build 2**。版本在根 package.json、src-tauri/Cargo.toml 和 tauri.conf.json 同步维护，
+当前版本 **1.3.0 / build 3**。版本在根 package.json、src-tauri/Cargo.toml 和 tauri.conf.json 同步维护，
 构建号在 bundle.macOS.bundleVersion 递增。失败重试不重复递增版本。
 产物位于 releases/GanT-版本-build构建号-架构/，脚本拒绝覆盖已有目录。
 未配置开发者证书与公证时采用 ad-hoc 签名；首次运行可能需要在 macOS 隐私与安全性设置中允许。
@@ -46,6 +52,9 @@ cargo test --manifest-path src-tauri/Cargo.toml
 # 另一个终端启动预览，端口 4177
 pnpm --filter web preview --host 127.0.0.1 --port 4177
 pnpm verify:ui
+node scripts/ui-verify/journey.mjs
+# 服务端历程规则与记录者隔离（先运行 pnpm build:server）
+node scripts/test-journey.cjs
 ```
 
 UI 验证脚本自动发现本机缓存的 Chromium，仅使用模拟项目与成员，拦截全部 API 请求，

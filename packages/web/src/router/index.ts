@@ -18,6 +18,11 @@ const router = createRouter({
       children: [
         {
           path: '',
+          name: 'Journey',
+          component: () => import('../views/JourneyView.vue')
+        },
+        {
+          path: 'projects',
           name: 'ProjectList',
           component: () => import('../views/ProjectList.vue')
         },

@@ -150,7 +150,7 @@ async function unlink(id: number, depId: number) {
           quaternary
           circle
           aria-label="返回项目列表"
-          @click="router.push('/')"
+          @click="router.push('/projects')"
           ><template #icon><ArrowLeft /></template
         ></NButton>
         <div>

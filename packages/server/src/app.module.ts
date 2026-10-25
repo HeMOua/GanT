@@ -1,3 +1,4 @@
+import { JourneyModule } from './modules/journey/journey.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProjectModule } from './modules/project/project.module';
@@ -21,6 +22,7 @@ import { UserModule } from './modules/user/user.module';
     UserModule,
     ProjectModule,
     TaskModule,
+    JourneyModule,
   ],
 })
 export class AppModule {}

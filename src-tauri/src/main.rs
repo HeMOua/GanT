@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod journey;
 mod storage;
 use std::sync::Mutex;
 use tauri::Manager;
